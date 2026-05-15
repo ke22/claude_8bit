@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Claude CLI – Loading Crabs</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  background: #0c0c0c;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 12px 40px;
+  font-family: 'Courier New', monospace;
+}
+h1 {
+  color: #DA7659;
+  font-size: 11px;
+  letter-spacing: 5px;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  opacity: 0.7;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 160px);
+  gap: 8px;
+}
+/* Each box looks like a mini Claude CLI terminal */
+.box {
+  background: #111111;
+  border: 1px solid #222;
+  border-top: 2px solid #2a2a2a;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Terminal title bar */
+.bar {
+  background: #1a1a1a;
+  padding: 3px 7px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px solid #2a2a2a;
+}
+.dot { width:5px; height:5px; border-radius:50%; }
+.d1{background:#ff5f57;} .d2{background:#febc2e;} .d3{background:#28c840;}
+/* Canvas area */
+.screen {
+  background: #0c0c0c;
+  display: flex;
+  justify-content: center;
+  padding: 4px 0 2px;
+  border-bottom: 1px solid #1a1a1a;
+}
+.screen canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+}
+/* CLI output line */
+.cli {
+  padding: 5px 7px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.prompt {
+  color: #555;
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+.action {
+  color: #DA7659;
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dots {
+  display: inline-block;
+  color: #DA7659;
+  opacity: 0.6;
+}
+</style>
+</head>
+<body>
+<h1>◆ Claude CLI ◆</h1>
+<div class="grid" id="g"></div>
+<script>
+// ── SVG paths (viewBox 0 0 225 158) ──────────────────────────────
+const BODY_D = `M54.5791 21.6381L130.503 21.6012L155.823 21.5894C160.251 21.5836 166.374 21.4088 170.674 21.7258C171.27 24.5808 170.975 28.6928 170.99 31.6744C171.006 34.5382 171.229 37.4157 171.307 40.3027C171.376 42.914 171.017 47.2685 171.316 49.6414C176.162 49.6864 181.009 49.6724 185.855 49.5993C188.46 49.5627 193.623 49.3982 196.114 49.7489C196.138 49.808 196.159 49.8673 196.181 49.9272C197.125 52.7202 196.71 74.1692 196.496 78.3548C194.733 78.587 191.123 78.5869 189.18 78.5864C183.035 78.585 177.176 78.4016 171.009 78.5338C170.851 80.4664 170.979 82.5941 170.989 84.5538L170.947 93.6242L170.932 126.542C170.924 128.621 171.314 135.191 170.713 136.78C170.594 137.095 170.358 137.238 170.058 137.351C169.648 137.507 157.789 137.411 156.338 137.343C155.838 137.32 155.334 137.303 154.874 137.088C154.576 136.558 154.337 135.167 154.354 134.535C154.596 125.503 154.058 116.118 154.484 107.123C151.138 106.672 143.391 106.745 139.958 107.111C139.817 111.49 140.49 134.801 139.652 136.983C138.909 137.573 135.059 137.35 133.876 137.335C132.27 137.35 126.945 137.565 125.772 137.074C125.083 136.379 125.149 134.087 125.114 133.113C124.807 124.47 125.363 115.792 125.196 107.169C122.667 106.749 116.321 106.796 113.35 106.824C108.24 106.873 101.764 106.557 96.8503 107.076C96.6303 111.541 97.2402 135.611 96.3777 137.18C94.9927 137.792 86.1952 137.068 83.9681 137.403C82.6893 137.596 82.4587 136.288 82.3941 135.182C82.2535 132.773 82.3024 130.278 82.3054 127.836L82.3589 113.956C82.3643 111.893 82.4223 108.896 82.2136 106.933C79.3797 106.634 71.2114 106.85 68.207 106.996C68.3663 108.854 68.2519 111.151 68.2357 113.052L68.1962 122.735L68.2133 131.65C68.2164 133.386 68.2955 135.747 68.0502 137.397C64.4676 137.325 60.884 137.313 57.3011 137.362C56.515 137.372 54.7328 137.485 54.1986 136.964C53.6031 134.656 53.8155 129.74 53.822 127.116L53.8384 114.443L53.8317 91.3643C53.8331 87.3131 53.7356 82.6307 53.9022 78.6242C50.7347 78.292 47.0121 78.4994 43.7879 78.5602C40.0063 78.6156 36.224 78.6205 32.442 78.575C31.1041 78.5626 26.2029 78.739 25.3678 77.9709C24.948 76.9356 24.9703 75.6855 24.9781 74.5756C25.0254 67.7191 24.9935 60.8626 25.0066 54.0065C25.0083 53.1908 24.9941 50.5291 25.5519 49.9856C27.7756 49.2584 49.9205 49.5733 53.804 49.7514C53.6466 48.4545 53.8354 43.7471 53.8347 42.1359L53.8154 28.1784C53.8222 26.3389 53.7756 24.1273 53.9647 22.2872C54.0047 21.8982 54.2516 21.838 54.5791 21.6381Z`;
+const EYE_R_D = `M140.389 34.9824C143.566 35.3365 151.562 35.1944 154.777 35.007C154.61 39.0148 154.502 45.2483 154.729 49.1828C154.474 49.2752 141.858 49.2931 140.506 49.3652C140.585 47.8981 140.46 45.4925 140.438 43.9361L140.389 34.9824Z`;
+const EYE_L_D = `M68.8895 34.9375C70.5213 35.2736 81.273 35.2333 83.0231 35.0193C83.0136 39.7287 82.908 44.5531 82.9393 49.2393C80.0919 49.2095 77.2445 49.1965 74.3971 49.2002C72.8304 49.2012 70.3578 49.1569 68.8564 49.3632C69.1524 45.7468 68.91 38.7246 68.8895 34.9375Z`;
+
+const OS_W=32, OS_H=24, PSC=4;
+const BW=OS_W*PSC, BH=OS_H*PSC;
+const SVG_S = OS_W/225;
+const ARM_Y  = Math.round(49*SVG_S);
+const ARM_H  = Math.round(29*SVG_S)+1;
+const ARM_LX = Math.round(25*SVG_S);
+const ARM_RX = Math.round(196*SVG_S);
+
+const bodyPath = new Path2D(BODY_D);
+const eyeRPath = new Path2D(EYE_R_D);
+const eyeLPath = new Path2D(EYE_L_D);
+const ORANGE='#DA7659', DARK='#0d0905';
+
+// ── Actions list ──────────────────────────────────────────────────
+const ACTIONS = [
+  { label:'Dilly-dallying',   anim:'dillydally'    },
+  { label:'Percolating',      anim:'percolating'   },
+  { label:'Frolicking',       anim:'frolicking'    },
+  { label:'Julienning',       anim:'julienning'    },
+  { label:'Churning',         anim:'churning'      },
+  { label:'Pouncing',         anim:'pouncing'      },
+  { label:'Slithering',       anim:'slithering'    },
+  { label:'Flambéing',        anim:'flambeing'     },
+  { label:'Considering',      anim:'considering'   },
+  { label:'Ionizing',         anim:'ionizing'      },
+  { label:'Ebbing',           anim:'ebbing'        },
+  { label:'Noodling',         anim:'noodling'      },
+  { label:'Envisioning',      anim:'envisioning'   },
+  { label:'Crystalizing',     anim:'crystalizing'  },
+  { label:'Pontifacting',     anim:'pontifacting'  },
+  { label:'Sautéing',         anim:'sauteing'      },
+  { label:'Metamorphosing',   anim:'metamorphosing'},
+  { label:'Precipitating',    anim:'precipitating' },
+  { label:'Germinating',      anim:'germinating'   },
+  { label:'Shimmying',        anim:'shimmying'     },
+  { label:'Levitating',       anim:'levitating'    },
+  { label:'Channelling',      anim:'channelling'   },
+  { label:'Swooping',         anim:'swooping'      },
+  { label:'Contemplating',    anim:'contemplating' },
+  { label:'Whirring',         anim:'whirring'      },
+  { label:'Blanching',        anim:'blanching'     },
+  { label:'Caramelizing',     anim:'caramelizing'  },
+  { label:'Schlepping',       anim:'schlepping'    },
+];
+
+// ── Animation state machine ───────────────────────────────────────
+function getState(anim, f) {
+  const s = (a,p=1) => Math.sin(f*a*p);
+  const c = (a,p=1) => Math.cos(f*a*p);
+  switch(anim) {
+    case 'dillydally': {
+      // Lazy intermittent bob — long pauses, slow moves
+      const cycle = f % 180;
+      const bobY = cycle < 90 ? (cycle < 45 ? 0 : 1) : 0;
+      return { bobY, blink: f%200<8, snapL: false, snapR: false };
+    }
+    case 'percolating': {
+      // Rapid tiny vertical bubbling
+      const b = Math.floor(f/4)%4;
+      return { bobY: [0,1,2,1][b], blink: f%120<5 };
+    }
+    case 'frolicking': {
+      // Big bouncy jumps, arms alternate
+      const c2 = f%70;
+      const bobY = c2 < 50 ? -Math.round(4*Math.sin(c2*Math.PI/50)) : 0;
+      const beat = Math.floor(f/18)%2;
+      return { bobY, snapL: beat===0, snapR: beat===1, bobX: Math.round(s(0.05)*2) };
+    }
+    case 'julienning': {
+      // Super rapid alternating snaps — like a knife chopping
+      const ph = Math.floor(f/3)%4;
+      return { snapL: ph<2, snapR: ph>=2, bobY: ph%2 };
+    }
+    case 'churning': {
+      // Spin continuously
+      return { rotate: f*0.07 };
+    }
+    case 'pouncing': {
+      // Crouch → explosive jump + arms out
+      const cycle = f%90;
+      if (cycle < 15)       return { bobY: 1, scaleY: 0.8 };         // crouch
+      if (cycle < 40)       return { bobY: -Math.round(4*Math.sin((cycle-15)*Math.PI/25)), snapL: true, snapR: true };  // air
+      if (cycle < 55)       return { bobY: 0, scaleY: 1.1, scaleX: 0.9 }; // land squish
+      return { bobY: 0 };
+    }
+    case 'slithering': {
+      // Slow sinuous left-right glide
+      return { bobX: Math.round(s(0.025)*4), bobY: Math.round(Math.abs(s(0.025))*1), blink: f%250<6 };
+    }
+    case 'flambeing': {
+      // Rapid flicker + excited jumps
+      const hide = Math.floor(f/5)%7 === 6;
+      const b = Math.floor(f/6)%2;
+      return { hide, bobY: b, bobX: b ? 1 : -1, snapL: b===0, snapR: b===1 };
+    }
+    case 'considering': {
+      // One arm up, slow gentle sway, occasional blink
+      return { snapR: true, bobX: Math.round(s(0.02)*1), blink: f%220<7, rotate: s(0.018)*0.08 };
+    }
+    case 'ionizing': {
+      // Electric rapid shake — jittery
+      const jit = Math.floor(f/2)%2;
+      return { bobX: jit?2:-2, bobY: Math.floor(f/3)%2, blink: f%40<4, snapL: f%12<6, snapR: f%12>=6 };
+    }
+    case 'ebbing': {
+      // Slow tide — float up, hold, drift back
+      const tide = (Math.sin(f*0.018)+1)/2;
+      return { bobY: -Math.round(tide*3), blink: f%300<6 };
+    }
+    case 'noodling': {
+      // Wobbly floppy movement
+      return { bobX: Math.round(s(0.04)*2+s(0.09)*1), bobY: Math.round(Math.abs(s(0.06))*1.5), scaleX: 1+s(0.05)*0.15, rotate: s(0.03)*0.15 };
+    }
+    case 'envisioning': {
+      // Scan left, pause, scan right, pause — like looking at something far away
+      const cyc = f%200;
+      if (cyc<50)  return { bobX:-2, blink:false, snapL:true };
+      if (cyc<80)  return { bobX:0 };
+      if (cyc<130) return { bobX:2, blink:false, snapR:true };
+      return { bobX:0, blink:cyc<145 };
+    }
+    case 'crystalizing': {
+      // Slowly solidify: grow from tiny, hold, repeat
+      const cyc = f%140;
+      const sc = cyc<60 ? 0.3+0.7*(cyc/60) : cyc<110 ? 1 : 1-0.7*((cyc-110)/30);
+      return { scaleX: sc, scaleY: sc };
+    }
+    case 'pontifacting': {
+      // Pompous: slow sway + arm raised like lecturing
+      const sway = Math.round(s(0.025)*1);
+      const raise = Math.floor(f/55)%6;
+      return { bobX:sway, snapR: raise<3, bobY: Math.floor(f/30)%4<2?0:1, blink: f%180<6 };
+    }
+    case 'sauteing': {
+      // Rapid tosses — short burst jumps
+      const cyc = f%30;
+      const toss = cyc<20 ? -Math.round(3*Math.sin(cyc*Math.PI/20)) : 0;
+      return { bobY:toss, bobX: Math.round(s(0.08)*1), snapL: cyc<10, snapR: cyc>=10&&cyc<20 };
+    }
+    case 'metamorphosing': {
+      // Morph: smoothly flip scaleX -1→1, also breathe scaleY
+      return { scaleX: Math.sin(f*0.03), scaleY: 0.85+0.15*Math.abs(Math.cos(f*0.02)), blink: Math.abs(Math.sin(f*0.03))<0.1 };
+    }
+    case 'precipitating': {
+      // Fall → bounce → fall — like a raindrop
+      const cyc = f%80;
+      const bobY = cyc<50 ? Math.round(4*(cyc/50)) : Math.round(4*(1-(cyc-50)/30));
+      return { bobY, blink: cyc<5 };
+    }
+    case 'germinating': {
+      // Slowly sprout upward from ground
+      const cyc = f%150;
+      const grow = cyc<80 ? cyc/80 : cyc<110 ? 1 : 1-((cyc-110)/40)*0.7;
+      return { scaleY: Math.max(0.1,grow), bobY: Math.round((1-Math.max(0.1,grow))*6) };
+    }
+    case 'shimmying': {
+      // Rapid hip-shake — tiny fast horizontal
+      return { bobX: Math.floor(f/2)%4<2?1:-1, bobY: Math.floor(f/8)%2, snapL: Math.floor(f/12)%2===0, snapR: Math.floor(f/12)%2===1 };
+    }
+    case 'levitating': {
+      // Smooth float up and down, very calm
+      return { bobY: -Math.round((Math.sin(f*0.03)+1)/2*3), blink: f%300<6 };
+    }
+    case 'channelling': {
+      // Both arms pulse out together — energy conduit
+      const pulse = Math.floor(f/18)%3;
+      return { snapL: pulse<2, snapR: pulse<2, bobY: pulse===1?1:0, blink: pulse===0 };
+    }
+    case 'swooping': {
+      // Arc — swing in a curve across
+      return { bobX: Math.round(s(0.04)*3), bobY: -Math.round((c(0.04)+1)/2*2), snapL: s(0.04)<-0.5, snapR: s(0.04)>0.5 };
+    }
+    case 'contemplating': {
+      // Nearly still — blink rarely, micro sway
+      return { bobX: Math.round(s(0.012)*0.7), blink: f%400<7, rotate: s(0.01)*0.06 };
+    }
+    case 'whirring': {
+      // Very fast spin
+      return { rotate: f*0.22 };
+    }
+    case 'blanching': {
+      // Shock-freeze: suddenly vanish, come back pale
+      const cyc = f%90;
+      return { hide: cyc>60&&cyc<70, scaleX: cyc>70?0.9:1, scaleY: cyc>70?1.15:1, blink: cyc>68&&cyc<75 };
+    }
+    case 'caramelizing': {
+      // Slow melt: squish wide and flat, bubble up
+      const melt = (Math.sin(f*0.022)+1)/2;
+      return { scaleX: 1+melt*0.35, scaleY: 1-melt*0.25, bobY: Math.round(melt*2), blink: f%200<6 };
+    }
+    case 'schlepping': {
+      // Heavy trudge — slow, lopsided walk, arms dragging
+      const step = Math.floor(f/28)%2;
+      return { bobX: Math.round(s(0.022)*3), bobY: step, snapL: Math.floor(f/28)%4<2, blink: f%280<8, rotate: s(0.022)*0.1 };
+    }
+    default: return {};
+  }
+}
+
+// ── Build DOM ─────────────────────────────────────────────────────
+const grid = document.getElementById('g');
+
+// Animated dots helper
+function makeDots(el) {
+  let d=0;
+  setInterval(()=>{ el.textContent=['','.','..',  '...'][d%4]; d++; },400);
+}
+
+const boxes = ACTIONS.map((cmd, idx) => {
+  const wrap = document.createElement('div'); wrap.className='box';
+
+  const bar = document.createElement('div'); bar.className='bar';
+  ['d1','d2','d3'].forEach(c=>{ const d=document.createElement('div'); d.className=`dot ${c}`; bar.appendChild(d); });
+
+  const screen = document.createElement('div'); screen.className='screen';
+  const cv = document.createElement('canvas'); cv.width=BW; cv.height=BH;
+  screen.appendChild(cv);
+
+  const cli = document.createElement('div'); cli.className='cli';
+  const prompt = document.createElement('div'); prompt.className='prompt';
+  prompt.textContent='● claude';
+  const action = document.createElement('div'); action.className='action';
+  const dots = document.createElement('span'); dots.className='dots';
+  action.textContent = cmd.label;
+  action.appendChild(dots);
+  makeDots(dots);
+  cli.append(prompt, action);
+
+  wrap.append(bar, screen, cli);
+  grid.appendChild(wrap);
+
+  const ctx = cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  const osCv = document.createElement('canvas'); osCv.width=OS_W; osCv.height=OS_H;
+  const oc = osCv.getContext('2d'); oc.imageSmoothingEnabled=false;
+
+  return { ctx, oc, osCv, anim:cmd.anim, phase: idx * 47 };
+});
+
+// ── Render crab to offscreen canvas ──────────────────────────────
+function renderCrab(oc, blink, snapL, snapR) {
+  oc.clearRect(0,0,OS_W,OS_H);
+  oc.save(); oc.scale(SVG_S,SVG_S);
+  oc.fillStyle=ORANGE; oc.fill(bodyPath);
+  oc.fillStyle=blink?ORANGE:DARK;
+  oc.fill(eyeLPath); oc.fill(eyeRPath);
+  oc.restore();
+  oc.fillStyle=ORANGE;
+  if(snapL) oc.fillRect(0,       ARM_Y, ARM_LX,      ARM_H);
+  if(snapR) oc.fillRect(ARM_RX,  ARM_Y, OS_W-ARM_RX, ARM_H);
+}
+
+// ── Main loop ─────────────────────────────────────────────────────
+let t=0;
+function loop() {
+  boxes.forEach(b => {
+    const ft = (t + b.phase)|0;
+    const {
+      bobX=0, bobY=0,
+      blink=false, snapL=false, snapR=false,
+      scaleX=1, scaleY=1, rotate=0, hide=false
+    } = getState(b.anim, ft);
+
+    renderCrab(b.oc, blink, snapL, snapR);
+
+    const ctx=b.ctx;
+    ctx.fillStyle='#0c0c0c'; ctx.fillRect(0,0,BW,BH);
+
+    // Subtle pixel grid
+    ctx.fillStyle='rgba(218,118,89,0.04)';
+    for(let x=0;x<BW;x+=PSC) for(let y=0;y<BH;y+=PSC) ctx.fillRect(x+1,y+1,2,2);
+
+    if(!hide) {
+      ctx.save();
+      ctx.translate(BW/2, BH/2);
+      ctx.rotate(rotate);
+      ctx.scale(scaleX, scaleY);
+      ctx.drawImage(b.osCv, -BW/2 + (bobX|0)*PSC, -BH/2 + (bobY|0)*PSC, BW, BH);
+      ctx.restore();
+    }
+
+    // CRT scanlines
+    ctx.fillStyle='rgba(0,0,0,0.10)';
+    for(let y=0;y<BH;y+=4) ctx.fillRect(0,y,BW,2);
+  });
+  t++;
+  requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
